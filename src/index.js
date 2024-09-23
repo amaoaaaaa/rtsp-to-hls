@@ -3,6 +3,7 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 const ffmpeg = require("fluent-ffmpeg");
+import { splitStreamName } from "./utils";
 
 const app = express();
 const port = 9537;
@@ -18,17 +19,6 @@ const outputDir = path.join(__dirname, "../output_hls");
 
 // 设置静态文件服务
 app.use("/hls", express.static(outputDir));
-
-/**
- * 从监控视频流 rtsp 中提取主机作为视频流的名称
- * @param {string} rtsp - rtsp地址，例如："rtsp://admin:hs123456@192.168.11.210:554/h265/ch33/main/av_stream"
- * @returns {string} ip+port，例如："192.168.11.210+554"
- */
-const splitStreamName = (rtsp) => {
-    const host = rtsp.split("@").pop().split("/").shift();
-
-    return host.replace(":", "+");
-};
 
 const rtspArr = [
     "rtsp://admin:hs123456@192.168.11.200:554/h265/ch33/main/av_stream",
@@ -53,7 +43,6 @@ const rtspArr = [
 ];
 
 rtspArr.forEach((url, index) => {
-    // const streamName = url.split("/").pop();
     const streamName = splitStreamName(url);
     const dir = `${outputDir}/${streamName}`;
 
@@ -69,6 +58,8 @@ rtspArr.forEach((url, index) => {
             fs.unlinkSync(filePath);
         }
     }
+
+    // let
 
     ffmpeg()
         // .input("rtsp://127.0.0.1:8554/monitor7") // 输入 RTSP 流
