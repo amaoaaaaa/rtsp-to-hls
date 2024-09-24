@@ -3,7 +3,7 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 const ffmpeg = require("fluent-ffmpeg");
-const { splitStreamName } = require("./utils");
+const { splitStreamName, removeDirSync } = require("./utils");
 
 const app = express();
 const port = 9537;
@@ -16,6 +16,7 @@ const ffmpegPath = path.join(__dirname, "../ffmpeg/ffmpeg");
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 const outputDir = path.join(__dirname, "../output_hls");
+removeDirSync(outputDir);
 
 // 设置静态文件服务
 app.use("/hls", express.static(outputDir));
@@ -62,13 +63,13 @@ const rtspArr = [
     "rtsp://admin:hs123456@192.168.11.200:554/h265/ch33/main/av_stream",
     "rtsp://admin:hs123456@192.168.11.214:554/h265/ch33/main/av_stream",
     "rtsp://admin:hs123456@192.168.11.203:554/h265/ch33/main/av_stream",
-    // "rtsp://admin:hs123456@192.168.11.209:554/h265/ch33/main/av_stream",
-    // "rtsp://admin:hs123456@192.168.11.206:554/h265/ch33/main/av_stream",
-    // "rtsp://admin:hs123456@192.168.11.207:554/h265/ch33/main/av_stream",
-    // "rtsp://admin:hs123456@192.168.11.210:554/h265/ch33/main/av_stream",
-    // "rtsp://admin:hs123456@192.168.11.213:554/h265/ch33/main/av_stream",
-    // "rtsp://admin:hs123456@192.168.11.217:554/h265/ch33/main/av_stream",
-    // "rtsp://admin:hs123456@192.168.11.218:554/h265/ch33/main/av_stream",
+    "rtsp://admin:hs123456@192.168.11.209:554/h265/ch33/main/av_stream",
+    "rtsp://admin:hs123456@192.168.11.206:554/h265/ch33/main/av_stream",
+    "rtsp://admin:hs123456@192.168.11.207:554/h265/ch33/main/av_stream",
+    "rtsp://admin:hs123456@192.168.11.210:554/h265/ch33/main/av_stream",
+    "rtsp://admin:hs123456@192.168.11.213:554/h265/ch33/main/av_stream",
+    "rtsp://admin:hs123456@192.168.11.217:554/h265/ch33/main/av_stream",
+    "rtsp://admin:hs123456@192.168.11.218:554/h265/ch33/main/av_stream",
     // "rtsp://admin:hs123456@192.168.11.220:554/h265/ch33/main/av_stream",
     // "rtsp://admin:hs123456@192.168.11.202:554/h265/ch33/main/av_stream",
     // "rtsp://admin:hs123456@192.168.11.219:554/h265/ch33/main/av_stream",
@@ -85,18 +86,9 @@ rtspArr.forEach((url, index) => {
     const streamName = splitStreamName(url);
     const dir = `${outputDir}/${streamName}`;
 
-    // 确保输出文件夹存在
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-    } else {
-        // 清空文件夹
-        const files = fs.readdirSync(dir);
-
-        for (const file of files) {
-            const filePath = path.join(dir, file);
-            fs.unlinkSync(filePath);
-        }
-    }
+    // 创建空文件夹
+    fs.existsSync(dir) && removeDirSync(dir);
+    fs.mkdirSync(dir, { recursive: true });
 
     let tryTimes = 0;
     const maxTryTimes = 3;
