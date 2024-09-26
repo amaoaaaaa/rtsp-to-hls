@@ -5,7 +5,7 @@ const fs = require("fs");
 const ffmpeg = require("fluent-ffmpeg");
 const { splitStreamName, removeDirSync } = require("./utils");
 const expressWs = require("express-ws");
-const { outputQuality } = require("../config");
+const { outputQuality, mockRtspHost, useMockRtsp } = require("../config");
 
 // ffmpeg.exe、ffprobe.exe 需要自己下载放到对应路径中：https://github.com/BtbN/FFmpeg-Builds/releases
 const ffmpegPath = path.join(__dirname, "../ffmpeg/ffmpeg");
@@ -27,29 +27,32 @@ app.use("/hls", express.static(outputDir));
 // WebSocket
 expressWs(app);
 
+/** 本地模拟的 rtsp 地址前缀 */
+const mockRtspPrefix = `rtsp://${mockRtspHost}:8554`;
+
 /**
  * 本地模拟的 rtsp，对应接口返回的实际地址
  */
 const mockRtsp = {
-    "rtsp://admin:hs123456@192.168.11.200:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/1",
-    "rtsp://admin:hs123456@192.168.11.214:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/2",
-    "rtsp://admin:hs123456@192.168.11.203:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/3",
-    "rtsp://admin:hs123456@192.168.11.209:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/4",
-    "rtsp://admin:hs123456@192.168.11.206:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/5",
-    "rtsp://admin:hs123456@192.168.11.207:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/6",
-    "rtsp://admin:hs123456@192.168.11.210:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/7",
-    "rtsp://admin:hs123456@192.168.11.213:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/8",
-    "rtsp://admin:hs123456@192.168.11.217:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/9",
-    "rtsp://admin:hs123456@192.168.11.218:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/10",
-    "rtsp://admin:hs123456@192.168.11.220:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/11",
-    "rtsp://admin:hs123456@192.168.11.202:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/12",
-    "rtsp://admin:hs123456@192.168.11.219:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/13",
-    "rtsp://admin:hs123456@192.168.11.204:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/14",
-    "rtsp://admin:hs123456@192.168.11.212:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/15",
-    "rtsp://admin:hs123456@192.168.11.216:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/16",
-    "rtsp://admin:hs123456@192.168.11.211:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/17",
-    "rtsp://admin:hs123456@192.168.11.208:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/18",
-    "rtsp://admin:hs123456@192.168.11.205:554/h265/ch33/main/av_stream": "rtsp://127.0.0.1:8554/19",
+    "rtsp://admin:hs123456@192.168.11.200:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/1`,
+    "rtsp://admin:hs123456@192.168.11.214:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/2`,
+    "rtsp://admin:hs123456@192.168.11.203:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/3`,
+    "rtsp://admin:hs123456@192.168.11.209:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/4`,
+    "rtsp://admin:hs123456@192.168.11.206:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/5`,
+    "rtsp://admin:hs123456@192.168.11.207:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/6`,
+    "rtsp://admin:hs123456@192.168.11.210:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/7`,
+    "rtsp://admin:hs123456@192.168.11.213:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/8`,
+    "rtsp://admin:hs123456@192.168.11.217:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/9`,
+    "rtsp://admin:hs123456@192.168.11.218:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/10`,
+    "rtsp://admin:hs123456@192.168.11.220:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/11`,
+    "rtsp://admin:hs123456@192.168.11.202:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/12`,
+    "rtsp://admin:hs123456@192.168.11.219:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/13`,
+    "rtsp://admin:hs123456@192.168.11.204:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/14`,
+    "rtsp://admin:hs123456@192.168.11.212:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/15`,
+    "rtsp://admin:hs123456@192.168.11.216:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/16`,
+    "rtsp://admin:hs123456@192.168.11.211:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/17`,
+    "rtsp://admin:hs123456@192.168.11.208:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/18`,
+    "rtsp://admin:hs123456@192.168.11.205:554/h265/ch33/main/av_stream": `${mockRtspPrefix}/19`,
 };
 
 /**
@@ -107,7 +110,7 @@ app.ws(
     /** @type {import("express-ws").WebsocketRequestHandler} */
     function (ws, req) {
         const url = req.query.rtsp;
-        const rtspUrl = mockRtsp[url];
+        const rtspUrl = useMockRtsp ? mockRtsp[url] : url;
         const streamName = splitStreamName(url);
         const hlsUrl = `http://127.0.0.1:${port}/hls/${streamName}/${streamName}.m3u8`;
         const dir = `${outputDir}/${streamName}`;
@@ -166,8 +169,6 @@ app.ws(
                 }
 
                 command = ffmpeg()
-                    // .input("rtsp://127.0.0.1:8554/monitor7") // 输入 RTSP 流
-                    // .input(url) // 输入 RTSP 流
                     .input(rtspUrl) // 输入 RTSP 流
 
                     // .outputOptions("-c:v copy") // 视频流直接复制
