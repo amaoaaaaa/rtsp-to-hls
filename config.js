@@ -1,5 +1,10 @@
 module.exports = {
     /**
+     * 运行端口
+     */
+    port: 9537,
+
+    /**
      * 转码输出质量
      */
     outputQuality: {
