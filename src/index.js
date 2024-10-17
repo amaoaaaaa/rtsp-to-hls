@@ -7,7 +7,7 @@ const { splitStreamName, removeDirSync } = require("./utils");
 const expressWs = require("express-ws");
 const { outputQuality, mockRtspHost, useMockRtsp } = require("../config");
 
-// ffmpeg.exe、ffprobe.exe 需要自己下载放到对应路径中：https://github.com/BtbN/FFmpeg-Builds/releases
+// ffmpeg.exe、需要自己下载放到对应路径中：https://github.com/BtbN/FFmpeg-Builds/releases
 const ffmpegPath = path.join(__dirname, "../ffmpeg/ffmpeg");
 ffmpeg.setFfmpegPath(ffmpegPath);
 
@@ -74,34 +74,58 @@ setInterval(() => {
 /**
  * 获取输出分辨率
  * @param {string} rtspUrl - 视频流地址
+ * @param {string} dir - 临时文件输出文件夹
  * @returns {Promise<{width: number; height: number;}>}
  */
-const getOutputSize = (rtspUrl) => {
+const getOutputSize = (rtspUrl, dir) => {
     return new Promise((resolve, reject) => {
-        ffmpeg.ffprobe(rtspUrl, (err, metadata) => {
-            if (err) return reject("获取 rtsp 元数据失败");
+        const FfmpegCommand = ffmpeg()
+            .input(rtspUrl)
+            .output(path.join(dir, `temp.mp4`))
+            .on("codecData", function ({ video_details }) {
+                FfmpegCommand.kill("SIGKILL");
 
-            const videoStream = metadata.streams.find((stream) => stream.codec_type === "video");
+                /** @type {string[]} */
+                const metaArr = video_details;
 
-            if (!videoStream) return reject("找不到视频流");
+                let sourceWidth, sourceHeight;
 
-            const sourceWidth = videoStream.width;
-            const sourceHeight = videoStream.height;
+                metaArr.forEach((str) => {
+                    if (str.match(/(\d+)x(\d+)/)) {
+                        // 1920x1080 [SAR 1:1 DAR 16:9] ==> 1920x1080 ==> [1920, 1080]
+                        [sourceWidth, sourceHeight] = str.split(" ").shift()?.split("x");
+                    }
+                });
 
-            const output = {
-                // 固定输出宽度
-                width: outputQuality.width,
-                height: 0,
-            };
+                if (!sourceWidth || !sourceHeight) return reject("获取 rtsp 元数据失败");
 
-            // 计算输出高度
-            output.height = Math.floor(output.width / (sourceWidth / sourceHeight));
+                const output = {
+                    // 固定输出宽度
+                    width: outputQuality.width,
+                    height: 0,
+                };
 
-            // 强行转偶数
-            if (output.height % 2 !== 0) output.height++;
+                // 计算输出高度
+                output.height = Math.floor(output.width / (sourceWidth / sourceHeight));
 
-            resolve(output);
-        });
+                // 强行转偶数
+                if (output.height % 2 !== 0) output.height++;
+
+                resolve(output);
+            })
+            .on("error", function (err) {
+                if (err.message === "ffmpeg was killed with signal SIGKILL") return;
+
+                FfmpegCommand.kill("SIGKILL");
+                return reject("获取 rtsp 元数据失败");
+            })
+            .run();
+
+        // 获取超时，kill掉
+        setTimeout(() => {
+            FfmpegCommand.kill("SIGKILL");
+            return reject("获取 rtsp 元数据失败");
+        }, 1000 * 10);
     });
 };
 
@@ -151,7 +175,7 @@ app.ws(
         fs.mkdirSync(dir, { recursive: true });
 
         let tryTimes = 0;
-        const maxTryTimes = 3;
+        const maxTryTimes = 2;
 
         /** @type {{width: number; height: number;}} */
         let outputSize;
@@ -165,7 +189,7 @@ app.ws(
 
             try {
                 if (!outputSize) {
-                    outputSize = await getOutputSize(rtspUrl);
+                    outputSize = await getOutputSize(rtspUrl, dir);
                 }
 
                 command = ffmpeg()
@@ -251,10 +275,14 @@ app.ws(
 
                 // 出错重试
                 if (tryTimes < maxTryTimes) {
-                    tryTimes++;
-                    console.log(`重试第${tryTimes}次`, rtspUrl);
+                    if (ws.readyState === 3) {
+                        console.log("连接已关闭，不再重试", rtspUrl);
+                    } else {
+                        tryTimes++;
+                        console.log(`重试第${tryTimes}次`, rtspUrl);
 
-                    runFfmpeg();
+                        runFfmpeg();
+                    }
                 } else {
                     console.log("超出最大重试次数", rtspUrl);
                 }
