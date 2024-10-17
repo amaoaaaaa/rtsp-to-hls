@@ -27,7 +27,7 @@ module.exports = {
     /**
      * 是否使用本地模拟的 rtsp 源
      */
-    useMockRtsp: true,
+    useMockRtsp: false,
 
     /**
      * 模拟 rtsp 主机地址

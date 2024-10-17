@@ -97,7 +97,7 @@ const getOutputSize = (rtspUrl, dir) => {
         // 获取超时，kill掉
         setTimeout(() => {
             FfmpegCommand.kill("SIGKILL");
-            return reject("获取 rtsp 元数据失败");
+            return reject("获取 rtsp 元数据超时");
         }, 1000 * 10);
     });
 };
